@@ -4,7 +4,8 @@
   <name>docking_with_fiducial</name>
   <version>0.0.0</version>
   <description>Docking package</description>
-  <maintainer email="neobotix@todo.todo">neobotix</maintainer>
+  <author email="riyashah@andrew.cmu.edu">riyashah</author>
+  <maintainer email="riyashah@andrew.cmu.edu">riyashah</maintainer>
   <license>Apache License 2.0</license>
 
   <depend>geometry_msgs.msg</depend>
