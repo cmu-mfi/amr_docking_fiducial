@@ -1,0 +1,9 @@
+2:
+  distance: 0.46017852425575256
+    #  lateral_bias: 0.06900642067193985
+  lateral_bias: -0.1
+  marker_id: 2
+3:
+  distance: 0.5905031561851501
+  lateral_bias: 0.03798777237534523
+  marker_id: 3

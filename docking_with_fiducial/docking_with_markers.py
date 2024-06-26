@@ -2,17 +2,20 @@ import rclpy
 from rclpy.node import Node
 from aruco_msgs.msg import MarkerArray
 from geometry_msgs.msg import Twist
-# from docking.srv import DockingWithMarkers
 from std_srvs.srv import Trigger
-# import mathneobotix
 import numpy as np
 from scipy.spatial.transform import Rotation as R
 import time
 import math
 import yaml
 import os 
+from ament_index_python.packages import get_package_share_directory
 
-# backs up too far in the z, yaw overcompensation, marker memory, stop seeing markers, creation of yaml file - have to save in package config file get pacage share direct, add check if safe statements 
+
+# stop seeing markers, DONE - check if safe 
+# creation of yaml file - have to save in package config file get pacage share direct, - DONE
+#launch file (should have realsense and aruco and this node with parameters namespace) and read me 
+#add namespace (launches service in same namespace)
 
 class DockWithMarkers(Node):
 
@@ -32,13 +35,22 @@ class DockWithMarkers(Node):
         self.marker_y = None
         self.marker_z = None
         self.marker_rot = None
-        self.marker_last = None
+        self.time_marker_last = None
         self.x_offset = None
         self.z_offset = None
 
-        self.file_path = 'docking_offsets.yaml'
+        self.package_name = 'docking_with_fiducial'  # Replace with your actual package name
+        self.file_name = 'docking_offsets.yaml'
+        self.file_path = self.set_file_path(self.file_name)
 
         self.get_logger().info("Docking with Markers Node Initialized!")
+
+
+    def set_file_path(self, file_name):
+        current_dir = os.path.dirname(os.path.realpath(__file__))
+        config_directory = os.path.join(current_dir, 'config')
+        os.makedirs(config_directory, exist_ok=True)
+        return os.path.join(config_directory, file_name)
 
     def dock_offsets_callback(self, request, response):
         if self.marker_id == None:
@@ -63,6 +75,7 @@ class DockWithMarkers(Node):
         response.success = True
         response.message = "Docking parameters recorded"
         self.get_logger().info(f"Docking Parameters for Marker {self.marker_id} Recorded!")
+        #self.get_logger().info(f"The file path is: {self.file_path}")
         #self.get_logger().info(os.getcwd())
         
         return response
@@ -84,7 +97,7 @@ class DockWithMarkers(Node):
                 
             if self.marker_id in offsets:
                 offsets = offsets[self.marker_id]
-                self.x_offset = offsets['lateral_bias']
+                self.x_offset = offsets['lateral_bias'] 
                 self.z_offset = offsets['distance']
                 response.success = True
                 response.message = "Docking Started!"
@@ -110,7 +123,7 @@ class DockWithMarkers(Node):
         self.marker_y = marker.pose.pose.position.y
         self.marker_z = marker.pose.pose.position.z
         self.marker_rot = marker.pose.pose.orientation
-        self.marker_last = time.time()
+        self.time_marker_last = time.time()
 
         self.marker_id = marker.id
 
@@ -119,6 +132,8 @@ class DockWithMarkers(Node):
         # lateral_bias = 0
         # distance_bias = 0.75
         # yaw_bias = 0
+
+        #self.check_if_safe()
 
         if self.marker_id == None or self.docking == False:
             return None
@@ -129,18 +144,20 @@ class DockWithMarkers(Node):
         y_pos = self.marker_y
         z_pos = self.marker_z
         rot = self.marker_rot
-
+        lateral_offset = x_pos - self.x_offset
+  
         cmd = Twist()
 
         # STAGE 1/4: FIRST ORIENT 
         if self.stage == 'orient':
+            self.check_if_safe()
             cmd, fixed = self.fix_orientation(rot, cmd)
             if fixed:
                 self.stage = 'lateral_offset'
 
         # STAGE 2/4: FIX LATERAL OFFSET 
         elif self.stage == 'lateral_offset':
-            lateral_offset = x_pos - self.x_offset
+            #lateral_offset = x_pos - self.x_offset
             self.get_logger().info(f"Lateral Offset: {lateral_offset}")
 
             if abs(lateral_offset) < 0.05:
@@ -155,6 +172,7 @@ class DockWithMarkers(Node):
 
         # # STAGE 3/4: FINAL ORIENT
         elif self.stage == 'final_orient':
+            self.check_if_safe()
             cmd, fixed = self.fix_orientation(rot, cmd)
             if fixed:
                 #time.sleep(2)
@@ -164,11 +182,13 @@ class DockWithMarkers(Node):
         # # STAGE 4/4: BACKUP
         #insert part where if the robot can no longer see the marker it stops given the initial distance 
         elif self.stage == 'backup':
-            if z_pos > self.z_offset:
-                cmd.linear.x = -0.15
+            if z_pos > (self.z_offset + 0.01):
+                #time.sleep(0.5)
+                self.check_if_safe()
+                cmd.linear.x = -0.10
             else:
                 cmd.linear.x = 0.0
-                self.get_logger().info("Done backing up")
+                self.get_logger().info(f"Done backing up lateral offset: {lateral_offset}")
                 self.stage = 'completed'
                 self.docking = False
 
@@ -196,6 +216,7 @@ class DockWithMarkers(Node):
         start_time = time.time()
         cmd = Twist()
         while time.time() - start_time < time_s:
+            #self.check_if_safe()
             cmd.angular.z = angle / time_s
             self.cmd_vel_publisher_.publish(cmd)
         cmd.angular.z = 0.0
@@ -205,6 +226,7 @@ class DockWithMarkers(Node):
         start_time = time.time()
         cmd = Twist()
         while time.time() - start_time < time_s:
+            #self.check_if_safe()
             cmd.linear.x = distance / time_s
             self.cmd_vel_publisher_.publish(cmd)
         cmd.linear.x = 0.0
@@ -212,8 +234,9 @@ class DockWithMarkers(Node):
 
     def check_if_safe(self):
         current_time = time.time()
-        if current_time - self.marker_last > 1.0:
+        if current_time - self.time_marker_last > 1.0:
             self.docking = False
+            self.get_logger().info("Marker out of sight")
             
     # def quat_to_degrees(self, rot):
     #     R_mat = R.from_quat([rot.x, rot.y, rot.z, rot.w])
