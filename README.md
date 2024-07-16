@@ -12,7 +12,6 @@ $ cd ros2_ws/src
 $ git clone -b humble-devel https://github.com/pal-robotics/aruco_ros.git
 $ git clone -b ros2-development https://github.com/IntelRealSense/realsense-ros.git
 $ git clone https://github.com/cmu-mfi/amr_docking_fiducial.git
-$ cp docking_with_fiducial/extras/docking_markers.launch.py aruco_ros/aruco_ros/launch/
 $ cd ../
 $ colcon build --symlink-install
 ```
@@ -26,4 +25,19 @@ colcon build --symlink-install --packages-select docking_with_fiducial
 
 ```
 ros2 launch docking_with_fiducial docking_with_markers.launch.py namespace:=robot1
+```
+
+
+## Use
+
+record fiducial marker offsets:
+
+```
+ros2 service call /robot1/get_docking_offsets std_srvs/srv/Trigger {}
+```
+
+
+execute dock:
+```
+ros2 service call /robot1/docking_with_markers std_srvs/srv/Trigger {}
 ```
