@@ -21,8 +21,9 @@ class DockWithMarkers(Node):
 
     def __init__(self):
         super().__init__("docking_with_markers")
-        self.cmd_vel_publisher_ = self.create_publisher(Twist, "/robot1/cmd_vel", 10)
-        self.pose_subscriber_ = self.create_subscription(MarkerArray, "/marker_publisher/markers", self.marker_callback, 10)
+        namespace = self.get_namespace()
+        self.cmd_vel_publisher_ = self.create_publisher(Twist, f"{namespace}/cmd_vel", 10)
+        self.pose_subscriber_ = self.create_subscription(MarkerArray, f"{namespace}/marker_publisher/markers", self.marker_callback, 10)
         self.srv_dock = self.create_service(Trigger, 'docking_with_markers', self.dock_callback)
         self.srv_param = self.create_service(Trigger, 'get_docking_offsets', self.dock_offsets_callback)
         self.timer = self.create_timer(0.1, self.dock_execute)
