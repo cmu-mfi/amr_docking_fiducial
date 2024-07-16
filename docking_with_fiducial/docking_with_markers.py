@@ -163,13 +163,17 @@ class DockWithMarkers(Node):
 
             if abs(lateral_offset) < 0.05:
                 self.stage = 'final_orient'
-                time.sleep(2)
+                # time.sleep(2)
             else:
                 self.turn_angle(math.pi / 2, 3)
                 self.move_linear(lateral_offset, 3)
                 self.turn_angle(-math.pi / 2, 3)
-                self.stage = 'final_orient'
-                time.sleep(2)
+                self.stage = 'final_orient_prep'
+                # time.sleep(2)
+
+        # # STAGE 2.5/4: FINAL ORIENT PREP [not pretty, we know!]
+        elif self.stage == 'final_orient_prep':
+            self.stage = 'final_orient'
 
         # # STAGE 3/4: FINAL ORIENT
         elif self.stage == 'final_orient':
@@ -237,7 +241,7 @@ class DockWithMarkers(Node):
         current_time = time.time()
         if current_time - self.time_marker_last > 1.0:
             self.docking = False
-            self.get_logger().info("Marker out of sight")
+            self.get_logger().info(f"Marker out of sight since: {current_time - self.time_marker_last}")
             
     # def quat_to_degrees(self, rot):
     #     R_mat = R.from_quat([rot.x, rot.y, rot.z, rot.w])
