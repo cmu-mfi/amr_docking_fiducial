@@ -3,6 +3,7 @@ from rclpy.node import Node
 from aruco_msgs.msg import MarkerArray
 from geometry_msgs.msg import Twist
 from std_srvs.srv import Trigger
+from std_msgs.msg import String
 import numpy as np
 from scipy.spatial.transform import Rotation as R
 import time
@@ -22,8 +23,12 @@ class DockWithMarkers(Node):
     def __init__(self):
         super().__init__("docking_with_markers")
         namespace = self.get_namespace()
+        
         self.cmd_vel_publisher_ = self.create_publisher(Twist, f"{namespace}/cmd_vel", 10)
+        self.robot_state_publisher_ = self.create_publisher(String, f"{namespace}/robot_state", 10)
+        
         self.pose_subscriber_ = self.create_subscription(MarkerArray, f"{namespace}/marker_publisher/markers", self.marker_callback, 10)
+        
         self.srv_dock = self.create_service(Trigger, 'docking_with_markers', self.dock_callback)
         self.srv_undock = self.create_service(Trigger, 'undocking_with_markers', self.undock_callback)
         self.srv_param = self.create_service(Trigger, 'get_docking_offsets', self.dock_offsets_callback)
@@ -89,9 +94,13 @@ class DockWithMarkers(Node):
             response.message = "Cannot undock while docking!"
             return response
         
+        self.robot_state_publisher_.publish(String(data="undocking"))
+        
         self.move_linear(0.1, 2)
         response.success = True
-        response.message = "Undocking Started!"
+        response.message = "Undocking Done!"
+        self.robot_state_publisher_.publish(String(data="undocking done"))
+        
         return response
         
     def dock_callback(self, request, response):
@@ -150,6 +159,8 @@ class DockWithMarkers(Node):
 
         if self.marker_id == None or self.docking == False:
             return None
+        
+        self.robot_state_publisher_.publish(String(data="docking"))
 
         self.get_logger().info(f"Docking Stage {self.stage}")
 
@@ -207,6 +218,7 @@ class DockWithMarkers(Node):
                 cmd.linear.x = 0.0
                 self.get_logger().info(f"Done backing up lateral offset: {lateral_offset}")
                 self.stage = 'completed'
+                self.robot_state_publisher_.publish(String(data="docking done"))
                 self.docking = False
 
         self.cmd_vel_publisher_.publish(cmd)
