@@ -25,6 +25,7 @@ class DockWithMarkers(Node):
         self.cmd_vel_publisher_ = self.create_publisher(Twist, f"{namespace}/cmd_vel", 10)
         self.pose_subscriber_ = self.create_subscription(MarkerArray, f"{namespace}/marker_publisher/markers", self.marker_callback, 10)
         self.srv_dock = self.create_service(Trigger, 'docking_with_markers', self.dock_callback)
+        self.srv_undock = self.create_service(Trigger, 'undocking_with_markers', self.undock_callback)
         self.srv_param = self.create_service(Trigger, 'get_docking_offsets', self.dock_offsets_callback)
         self.timer = self.create_timer(0.1, self.dock_execute)
         
@@ -45,7 +46,6 @@ class DockWithMarkers(Node):
         self.file_path = self.set_file_path(self.file_name)
 
         self.get_logger().info("Docking with Markers Node Initialized!")
-
 
     def set_file_path(self, file_name):
         current_dir = os.path.dirname(os.path.realpath(__file__))
@@ -81,6 +81,19 @@ class DockWithMarkers(Node):
         
         return response
 
+    def undock_callback(self, request, response):
+        self.get_logger().info("Undocking service called")
+        
+        if self.docking == True:
+            response.success = False
+            response.message = "Cannot undock while docking!"
+            return response
+        
+        self.move_linear(0.1, 2)
+        response.success = True
+        response.message = "Undocking Started!"
+        return response
+        
     def dock_callback(self, request, response):
 
         self.get_logger().info("Docking service called")
@@ -116,7 +129,6 @@ class DockWithMarkers(Node):
         self.docking = True
 
         return response
-
 
     def marker_callback(self, pose: MarkerArray):
         marker = pose.markers[0]
